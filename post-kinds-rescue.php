@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Post Kinds Rescue
  * Description:       Puts posts migrated from the classic Post Kinds plugin back in the right kind, using the response data (mf2_ post meta) the classic plugin left behind. Preview first, fix in one go, undo any time.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -401,13 +401,23 @@ function kind_name( string $slug ): string {
 add_action(
 	'admin_menu',
 	static function () {
-		add_management_page(
+		$hook = add_management_page(
 			__( 'Post Kinds Rescue', 'post-kinds-rescue' ),
 			__( 'Post Kinds Rescue', 'post-kinds-rescue' ),
 			'manage_options',
 			PAGE_SLUG,
 			__NAMESPACE__ . '\\render_page'
 		);
+		if ( $hook ) {
+			add_action(
+				'admin_enqueue_scripts',
+				static function ( $current ) use ( $hook ) {
+					if ( $current === $hook ) {
+						wp_enqueue_script( 'wp-a11y' );
+					}
+				}
+			);
+		}
 	}
 );
 
@@ -595,6 +605,12 @@ function render_page(): void {
 	<div class="wrap">
 		<h1><?php esc_html_e( 'Post Kinds Rescue', 'post-kinds-rescue' ); ?></h1>
 		<?php render_result_notice(); ?>
+		<nav aria-label="<?php esc_attr_e( 'Steps on this page', 'post-kinds-rescue' ); ?>">
+			<p><?php esc_html_e( 'Jump to:', 'post-kinds-rescue' ); ?>
+				<a href="#pkr-fix"><?php esc_html_e( 'Step 1, Fix the kinds', 'post-kinds-rescue' ); ?></a> |
+				<a href="#pkr-details"><?php esc_html_e( 'Step 2, Show the details', 'post-kinds-rescue' ); ?></a>
+			</p>
+		</nav>
 		<?php if ( ! taxonomy_exists( TAXONOMY ) ) : ?>
 			<div class="notice notice-error"><p><?php esc_html_e( 'The kind taxonomy is not registered. Activate the Post Kinds for IndieWeb plugin first, then come back.', 'post-kinds-rescue' ); ?></p></div>
 		<?php endif; ?>
@@ -650,7 +666,7 @@ function render_page(): void {
 						/* translators: 1: kind name, 2: number of posts. */
 						$label = $skipped ? sprintf( __( '%1$s (left alone)', 'post-kinds-rescue' ), kind_name( $kind ) ) : sprintf( _n( '%1$s: %2$s post', '%1$s: %2$s posts', $count, 'post-kinds-rescue' ), kind_name( $kind ), number_format_i18n( $count ) );
 						?>
-						<p><label><input type="checkbox" name="kinds_shown[]" value="<?php echo esc_attr( $kind ); ?>" <?php checked( ! $skipped ); ?>> <?php echo esc_html( $label ); ?></label></p>
+						<p><label><input type="checkbox" class="pkr-kind-box" data-count="<?php echo esc_attr( (string) ( $skipped ? -1 : $count ) ); ?>" name="kinds_shown[]" value="<?php echo esc_attr( $kind ); ?>" <?php checked( ! $skipped ); ?>> <?php echo esc_html( $label ); ?></label></p>
 						<?php if ( ! $skipped ) : ?>
 							<input type="hidden" name="all_kinds[]" value="<?php echo esc_attr( $kind ); ?>">
 						<?php endif; ?>
@@ -691,6 +707,10 @@ function render_page(): void {
 				<p><button type="submit" class="button" id="pkr-csv-button" name="action" value="pkr_csv"><?php esc_html_e( 'Download full preview (CSV file)', 'post-kinds-rescue' ); ?></button></p>
 			<?php endif; ?>
 
+			<?php if ( ! $total ) : ?>
+				<h2 id="pkr-fix" tabindex="-1"><?php esc_html_e( 'Step 1: Fix the kinds', 'post-kinds-rescue' ); ?></h2>
+				<p><?php esc_html_e( 'No kinds need fixing with these settings.', 'post-kinds-rescue' ); ?></p>
+			<?php endif; ?>
 			<?php if ( $total ) : ?>
 				<h2 id="pkr-fix" tabindex="-1"><?php esc_html_e( 'Step 1: Fix the kinds', 'post-kinds-rescue' ); ?></h2>
 				<p><?php esc_html_e( 'This uses the settings on this page as they are now, so you do not need to press Update preview first. Only the kind of each post changes. Large sites are fixed in rounds of about 25 seconds: if some posts are left, the message at the top of the page says so and you press this button again.', 'post-kinds-rescue' ); ?></p>
@@ -698,6 +718,35 @@ function render_page(): void {
 				<p><button type="submit" class="button button-primary" id="pkr-fix-button" name="action" value="pkr_apply"><?php echo esc_html( sprintf( _n( 'Change the kind of %s post now', 'Change the kind of up to %s posts now', $total, 'post-kinds-rescue' ), number_format_i18n( $total ) ) ); ?></button></p>
 			<?php endif; ?>
 		</form>
+		<?php
+		$js_text = array(
+			/* translators: %s: number of posts. */
+			'some'    => __( 'Change the kind of up to %s posts now', 'post-kinds-rescue' ),
+			/* translators: %s: number of posts. */
+			'one'     => __( 'Change the kind of %s post now', 'post-kinds-rescue' ),
+			'unknown' => __( 'Change the kinds now (press Update preview to see how many)', 'post-kinds-rescue' ),
+		);
+		?>
+		<script>
+		(function () {
+			var t = <?php echo wp_json_encode( $js_text ); ?>;
+			function update() {
+				var btn = document.getElementById('pkr-fix-button');
+				if (!btn) { return; }
+				var total = 0, unknown = false;
+				document.querySelectorAll('.pkr-kind-box').forEach(function (b) {
+					var c = parseInt(b.getAttribute('data-count'), 10);
+					if (b.checked) { if (c < 0) { unknown = true; } else { total += c; } }
+				});
+				btn.textContent = unknown ? t.unknown : (total === 1 ? t.one : t.some).replace('%s', total.toLocaleString());
+			}
+			document.addEventListener('change', function (e) {
+				if (e.target && e.target.classList && e.target.classList.contains('pkr-kind-box')) { update(); }
+			});
+			var u = document.querySelector('input[name="untitled_note"]');
+			if (u) { u.addEventListener('change', function () { var btn = document.getElementById('pkr-fix-button'); if (btn) { btn.textContent = t.unknown; } }); }
+		})();
+		</script>
 
 		<?php if ( $changed ) : ?>
 			<h2><?php esc_html_e( 'Undo the kind changes', 'post-kinds-rescue' ); ?></h2>
@@ -804,8 +853,11 @@ function render_result_notice(): void {
 			$msg = sprintf( _n( 'All done: %s post fixed. Next, you can show the details in step 2, or undo with the Undo kind changes button.', 'All done: %s posts fixed. Next, you can show the details in step 2, or undo with the Undo kind changes button.', $n, 'post-kinds-rescue' ), number_format_i18n( $n ) );
 		}
 	}
-	echo '<div id="pkr-result" class="notice notice-success" role="status" tabindex="-1"><p><strong>' . esc_html( $msg ) . '</strong></p></div>';
-	echo '<script>document.addEventListener("DOMContentLoaded",function(){var n=document.getElementById("pkr-result");if(n){n.focus();}});</script>';
+	// "inline" stops WordPress from moving the notice, which used to drop the focus.
+	// The message is a focused heading: screen readers read a heading out when it gets focus,
+	// and "inline" stops WordPress from moving the notice (which used to drop the focus).
+	echo '<div class="notice notice-success inline"><h2 id="pkr-result" tabindex="-1" style="font-size:1em;margin:.75em 0;">' . esc_html( $msg ) . '</h2></div>';
+	echo '<script>window.addEventListener("load",function(){var n=document.getElementById("pkr-result");if(!n){return;}setTimeout(function(){n.focus();},300);setTimeout(function(){if(window.wp&&wp.a11y&&wp.a11y.speak){wp.a11y.speak(n.textContent,"polite");}},1200);});</script>';
 }
 
 /* -------------------------------------------------------------------------
@@ -996,12 +1048,19 @@ function render_details_section( array $opts ): void {
 	$plan  = Details\describe_details_plan();
 	$undo  = count( array_unique( array_merge( Details\written_ids(), details_card_ids() ) ) );
 	?>
-	<h2><?php esc_html_e( 'Step 2: Show the details on each post', 'post-kinds-rescue' ); ?></h2>
+	<h2 id="pkr-details" tabindex="-1"><?php esc_html_e( 'Step 2: Show the details on each post', 'post-kinds-rescue' ); ?></h2>
 	<p><?php esc_html_e( 'The new plugin does not read the details the classic plugin saved, such as the liked link, the song you listened to or the book you read. This step copies those details into the new plugin and adds a short summary box at the top of each post, for example the title of the liked page with a link to it, so the details show again. The summary box is the same one the new plugin adds when you write a new post of that kind. Do this after step 1.', 'post-kinds-rescue' ); ?></p>
 	<p><?php esc_html_e( 'Your own text stays exactly as it is, below the summary. Posts are saved quietly: the last-modified date does not change, and no notifications or social posts are sent again. Undo puts each post back exactly, unless you edit it after this step.', 'post-kinds-rescue' ); ?></p>
 	<?php if ( ! $plan['count'] ) : ?>
 		<p><?php esc_html_e( 'No posts need details added right now.', 'post-kinds-rescue' ); ?></p>
 	<?php else : ?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="pkr_details_apply">
+			<?php wp_nonce_field( 'pkr_details' ); ?>
+			<?php option_fields( $opts ); ?>
+			<?php /* translators: %s: number of posts. */ ?>
+			<p><button type="submit" class="button button-primary" id="pkr-details-button"><?php echo esc_html( sprintf( _n( 'Add details to %s post now', 'Add details to up to %s posts now', $plan['count'], 'post-kinds-rescue' ), number_format_i18n( $plan['count'] ) ) ); ?></button></p>
+		</form>
 		<table class="widefat striped" style="max-width:40em;">
 			<?php /* translators: %s: number of posts. */ ?>
 			<caption style="text-align:left;padding:8px 0;"><?php echo esc_html( sprintf( _n( 'Details waiting to be added: %s post', 'Details waiting to be added: %s posts', $plan['count'], 'post-kinds-rescue' ), number_format_i18n( $plan['count'] ) ) ); ?></caption>
@@ -1020,13 +1079,6 @@ function render_details_section( array $opts ): void {
 			<?php endforeach; ?>
 			</tbody>
 		</table>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<input type="hidden" name="action" value="pkr_details_apply">
-			<?php wp_nonce_field( 'pkr_details' ); ?>
-			<?php option_fields( $opts ); ?>
-			<?php /* translators: %s: number of posts. */ ?>
-			<p><button type="submit" class="button button-primary" id="pkr-details-button"><?php echo esc_html( sprintf( _n( 'Add details to %s post now', 'Add details to up to %s posts now', $plan['count'], 'post-kinds-rescue' ), number_format_i18n( $plan['count'] ) ) ); ?></button></p>
-		</form>
 	<?php endif; ?>
 	<?php if ( $undo ) : ?>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">

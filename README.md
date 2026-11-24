@@ -121,7 +121,7 @@ Large sites are fixed in rounds of about 25 seconds. If some posts are left, the
 
 Open Tools in the admin menu, then choose Post Kinds Rescue. The page has these headings and buttons, in this order:
 
-1. Heading 1: "Post Kinds Rescue". Under it is a short paragraph that explains the tool.
+1. Heading 1: "Post Kinds Rescue". Right under it are two links, "Step 1, Fix the kinds" and "Step 2, Show the details", that jump straight to each step. Then a short paragraph explains the tool.
 2. Heading 2: "Summary". A list says how many posts were checked and how many can be fixed. It also says if any posts need review, if any kinds are missing from your site, and if any posts were changed earlier and can be undone.
 3. Heading 2: "Settings". This has three groups.
    - "Change only posts that have one of these kinds now:" with checkboxes "No kind", "Article", and "Note". All three are ticked by default.
@@ -129,7 +129,7 @@ Open Tools in the admin menu, then choose Post Kinds Rescue. The page has these 
    - "Kinds to fix. Untick any you want to leave alone:" with one checkbox for each kind, for example "Note: 12 posts". Untick a kind to leave it alone.
    Then press the button "Update preview" to see the effect of your settings. Focus moves to the Preview heading, and a message says how many posts can be fixed.
 4. Heading 2: "Preview". This is a table with a caption that starts "Planned changes". Its columns are "Post", "Kind now", "New kind", and "Why". Each post title links to the post editor. If nothing will change, the page says "Nothing to fix with these settings." Below the table is the button "Download full preview (CSV file)", which downloads the full list.
-5. Heading 2: "Step 1: Fix the kinds". This has the button "Change the kind of up to N posts now", where N is the number of posts. Press it to make the changes. Focus moves to a message at the top of the page, which starts "All done" or, on a large site, "Fixed N posts so far" and says how many are left.
+5. Heading 2: "Step 1: Fix the kinds". This has the button "Change the kind of up to N posts now", where N is the number of posts. The number updates when you tick or untick a kind. Press it to make the changes. Focus moves to a message at the top of the page, which is read out and starts "All done" or, on a large site, "Fixed N posts so far" and says how many are left.
 6. Heading 2: "Undo the kind changes". This appears after a fix. It has the button "Undo kind changes". If you changed a post's kind yourself after the fix, undo leaves that post as you set it.
 7. Heading 2: "Step 2: Show the details on each post". This appears after the Undo section. It is Step 5 below.
 8. Heading 2: "What is in your database". This has two tables, "Posts per kind right now" and "Posts per response data field". They help if something looks wrong.
@@ -140,7 +140,7 @@ The Change the kind button always uses the settings on the page as they are when
 
 Do this after Step 4, once the kinds are fixed.
 
-1. Find the heading "Step 2: Show the details on each post". Under it is a table called "Details waiting to be added". It has one row for each kind, with two counts: "Posts getting details" and "Posts getting a card".
+1. Find the heading "Step 2: Show the details on each post", or use the "Step 2" link at the top of the page. After two short paragraphs comes the button, then a table called "Details waiting to be added". The table has one row for each kind, with two counts: "Posts getting details" and "Posts getting a summary box".
 2. Press the button "Add details to N posts now", where N is the number of posts. On a large site it is "Add details to up to N posts now". The tool works in rounds, so if posts are left, the message at the top of the page says so. Press the same button again.
 3. When it is finished, the message says "All done: details added to N posts."
 4. If the page says "No posts need details added right now.", there is nothing to do.
@@ -196,7 +196,7 @@ Both:
 - Posts with a kind you set on purpose, such as "Photo" or "Like", are never changed. The settings only offer No kind, Article and Note.
 - Kinds that do not exist on your new site are skipped. The Summary, or the warning from the preview command, tells you which ones.
 - Posts with only old-style data need a person to check them.
-- This is version 0.1.0. Try it on a copy of your site first, and keep your backup until you are happy with the result.
+- This is version 0.1.1. Try it on a copy of your site first, and keep your backup until you are happy with the result.
 
 ## If something looks wrong
 
